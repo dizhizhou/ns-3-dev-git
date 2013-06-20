@@ -13,7 +13,6 @@ import textwrap
 
 from utils import read_config_file
 
-
 # WAF modules
 from waflib import Utils, Scripting, Configure, Build, Options, TaskGen, Context, Task, Logs, Errors
 from waflib.Errors import WafError
@@ -21,7 +20,6 @@ from waflib.Errors import WafError
 
 # local modules
 import wutils
-
 
 # By default, all modules will be enabled, examples will be disabled,
 # and tests will be disabled.

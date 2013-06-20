@@ -5,6 +5,8 @@
 #include "wiselib-ext-iface.h"
 #include "ns3/log.h"
 #include <iostream>
+#include <cstdarg>
+#include <cstdio>
 
 NS_LOG_COMPONENT_DEFINE ("WiselibExtIface");
 
