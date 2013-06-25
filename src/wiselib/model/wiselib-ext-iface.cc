@@ -27,5 +27,15 @@ WiselibExtIface::Debug (const char *msg)
   NS_LOG_DEBUG (msg);
 }
 
+void 
+WiselibExtIface::send_wiselib_message( node_id_t id, size_t len, block_data_t *data )
+{
+}
+
+WiselibExtIface::node_id_t 
+WiselibExtIface::id ()
+{
+  return 0;
+} 
 }
 

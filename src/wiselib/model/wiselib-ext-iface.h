@@ -15,6 +15,13 @@ namespace wiselib {
 class WiselibExtIface
 {
 public:
+
+  typedef int node_id_t;
+  typedef unsigned char block_data_t;
+  typedef long size_t;
+  typedef uint8_t message_id_t;
+
+
   WiselibExtIface ();
 
   virtual ~WiselibExtIface ();
@@ -37,6 +44,17 @@ public:
       //(obj_pnt->*TMethod) (userdata); // call member function TMethod now
       return true;
     }
+
+  void send_wiselib_message( node_id_t id, size_t len, block_data_t *data );
+
+  node_id_t id ();
+
+  template<void (*TMethod)( node_id_t, size_t, block_data_t* )>
+  bool reg_recv_callback() 
+    {
+      return true;
+    }
+
 
 private:
   typedef ns3::EventId Ns3EventId;

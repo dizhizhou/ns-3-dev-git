@@ -5,6 +5,7 @@
 #include "external_interface/ns3/ns3_os.h"
 #include "external_interface/ns3/ns3_debug.h"
 #include "external_interface/ns3/ns3_timer.h"
+#include "external_interface/ns3/ns3_radio.h"
 #include "external_interface/ns3/ns3_facet_provider.h"
 #include "external_interface/ns3/ns3_wiselib_application.h"
 
@@ -22,7 +23,8 @@ class Ns3ExampleApplication
       {  
         debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
         timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
-           
+        radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+          
         debug_->debug( "Hello world!");        
 
         timer_->set_timer<Ns3ExampleApplication,
@@ -38,7 +40,7 @@ class Ns3ExampleApplication
   private:
     Os::Debug::self_pointer_t debug_;
     Os::Timer::self_pointer_t timer_;
-
+    Os::Radio::self_pointer_t radio_;
 };
 
 wiselib::WiselibApplication<Os, Ns3ExampleApplication> example_app;
