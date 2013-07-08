@@ -10,6 +10,7 @@
 #include "external_interface/ns3/ns3_wiselib_application.h"
 
 #include "ns3/simulator.h"
+#include "ns3/ptr.h"
 
 using namespace wiselib;
 
@@ -25,7 +26,12 @@ class Ns3ExampleApplication
         timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
         radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
           
-        debug_->debug( "Hello world!");        
+        debug_->debug( "Init simulation");        
+
+        radio_->init_radio (); // create wifi ad hoc network with default parameters
+
+        radio_->reg_recv_callback <Ns3ExampleApplication,
+                          &Ns3ExampleApplication::receive_radio_message>(this);
 
         timer_->set_timer<Ns3ExampleApplication,
                           &Ns3ExampleApplication::start>( 5000, this, 0 );
@@ -35,7 +41,17 @@ class Ns3ExampleApplication
     void start (void*)
     {
        debug_->debug ("Start simulation \n");
+       debug_->debug( "broadcast message at node %d \n", radio_->id() );
+       Os::Radio::block_data_t message[] = "hello world!\0";
+               radio_->send( Os::Radio::BROADCAST_ADDRESS, sizeof(message), message );
     }
+
+    void receive_radio_message( Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *buf )
+      {
+         debug_->debug( "received msg at %u from %u\n", radio_->id(), from );
+         debug_->debug( "  message is %s\n", buf );
+      }
+
 
   private:
     Os::Debug::self_pointer_t debug_;
