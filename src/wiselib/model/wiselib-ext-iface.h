@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 #include <iostream>
+#include <map>
+#include <vector>
 #include "ns3/simulator.h"
 #include "ns3/event-id.h"
 
@@ -17,8 +19,58 @@
 #include "ns3/net-device-container.h"
 #include "ns3/address.h"
 #include "ns3/packet.h"
+#include "ns3/event-impl.h"
+#include "ns3/type-traits.h"
+#include "ns3/make-event.h"
+#include "ns3/wifi-helper.h"
+#include "ns3/yans-wifi-helper.h"
+#include "ns3/nqos-wifi-mac-helper.h"
 
 namespace wiselib {
+
+class EventImplExt : public ns3::EventImpl
+{
+public:
+   EventImplExt () { }
+   virtual ~EventImplExt () { }
+
+   virtual void RecvCallback (uint32_t , size_t, unsigned char*) { };
+};
+
+template <typename MEM, typename OBJ>
+EventImplExt * MakeRecvCallback (MEM mem_ptr, OBJ obj)
+{
+  // zero argument version
+  class EventMemberImpl0 : public EventImplExt
+  {
+public:
+    EventMemberImpl0 (OBJ obj, MEM function)
+      : m_obj (obj),
+        m_function (function)
+    {
+    }
+    virtual ~EventMemberImpl0 ()
+    {
+    }
+  
+    // call use-defined callback
+    virtual void RecvCallback (uint32_t from, size_t len, unsigned char* data)
+    {
+      (ns3::EventMemberImplObjTraits<OBJ>::GetReference (m_obj).*m_function)(from, len, data);
+    }
+
+private:
+    
+    virtual void Notify (void)
+    {
+    }
+    
+    OBJ m_obj;
+    MEM m_function;
+  } *ev = new EventMemberImpl0 (obj, mem_ptr);
+  return ev;
+}
+
 
 class WiselibExtIface
 {
@@ -53,49 +105,63 @@ public:
       return true;
     }
 
-
-  // TBD: node id function is disabled in the current simulation
-  node_id_t id (); 
-
-  // Function: register receive callback method for all sink nodes
-  // TBD: set receive callback method for the sink node with node_id_t
+  // register receive callback method for all sink nodes
   template<typename T, void (T::*TMethod)( node_id_t, size_t, block_data_t* )>
-  bool regRecvCallback( T *obj_pnt ) 
+  bool RegRecvCallback( T *obj_pnt, node_id_t local ) 
     {
-      for (uint16_t i = 0; i < recvSockets.size (); i++)
+      ns3::Address addr = nodes.Get (local)->GetDevice (0)->GetAddress ();
+      std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> >::iterator it = addDevMap.end (); 
+      it = addDevMap.find (addr);
+      if (it != addDevMap.end ()) 
         {
-          // we cannot add user-defined callbacks in here due to the fixed callback format in ns-3
-          recvSockets.at (i)->SetRecvCallback (ns3::MakeCallback 
+          // regeister NS-3 callback
+          it->second->SetReceiveCallback (ns3::MakeCallback 
                                   (&WiselibExtIface::DoRegRecvCallback, this));
-          // TBD: save user-defined callbacks: (socket -- TMethod, obj_pnt)
+
+          // store function and member which will be called in NS-3 callback
+          EventImplExt *event = MakeRecvCallback(TMethod, obj_pnt);
+          m_recvCallBackMap.insert(std::pair<node_id_t,EventImplExt*>(local, event));
         }
+
       return true;
     }
 
-  void DoRegRecvCallback (ns3::Ptr<ns3::Socket> socket) 
+  bool DoRegRecvCallback (ns3::Ptr<ns3::NetDevice> device, ns3::Ptr<const ns3::Packet> packet,
+                          uint16_t protocol, const ns3::Address &from) 
     {
-      // TBD: call user user-defined callbacks.
-      ns3::Address from;
-      ns3::Ptr<ns3::Packet> pkt;
-      while (pkt = socket->RecvFrom (from))
+      uint8_t buffer[packet->GetSize ()]; 
+      packet->CopyData (buffer, sizeof(buffer)); 
+      // call ns3::Node::ReceiveFromDevice method ?
+      std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> >::iterator it = addDevMap.end (); 
+      it = addDevMap.find (device->GetAddress ());
+      if (it != addDevMap.end ()) 
         {
-          uint8_t buffer[pkt->GetSize ()]; 
-          pkt->CopyData (buffer, sizeof(buffer)); 
-          std::cout << ns3::Simulator::Now ().GetSeconds () << " " << buffer << std::endl;
- 
-          // reg_call_back (node_id, sizeof (buffer), buffer)
+          node_id_t sendId = (addDevMap.find (from))->second->GetNode ()->GetId ();
+          node_id_t recvId = it->second->GetNode ()->GetId ();
+
+          std::map <node_id_t, EventImplExt*>::iterator itMap = m_recvCallBackMap.end ();
+          itMap = m_recvCallBackMap.find (recvId);       
+          if (itMap != m_recvCallBackMap.end ())
+            {
+              itMap->second->RecvCallback (sendId, sizeof(buffer), buffer);
+            }
+          else
+            std::cout << "Unknow receiver node id " << std::endl;
         }
+      else 
+        std::cout << "Unknow node id " << std::endl;
+      return true;
     }
 
+  // define default phy (802.11b), mac (adhoc) and wifi helper instance
+  void Init ();
 
-  // Function: 
-  //    1. define default phy (802.11b), mac (adhoc) and ip (ipv4) layer of nodes
-  //    2. create 3 default nodes. One is sender and other two nodes are sinks.
-  //    3. two sink nodes have the same distance(5 meters) with the source node
-  void initRadio ();
+  // create 1 node and install phy, mac on it
+  // return the node id to user
+  node_id_t EnableRadio ();
 
-  // use UDP packet to send data
-  void sendWiselibMessage( node_id_t id, size_t len, block_data_t *data );
+  // send mac layer packet
+  void SendWiselibMessage( node_id_t dest, size_t len, block_data_t *data, node_id_t local );
 
 private:
   typedef ns3::EventId Ns3EventId;
@@ -103,9 +169,14 @@ private:
 
   Ns3EventId m_timerFacetEvent;
 
+  // wifi parameters
   ns3::NodeContainer nodes;                        // note: we use the node index in index as the node id
-  std::vector<ns3::Ptr<ns3::Socket> > recvSockets; // sockets on sink node, default value = UDP socket
-  std::vector<ns3::Ptr<ns3::Socket> > sendSockets; // sockets on source node, default value = UDP socket
+  ns3::YansWifiPhyHelper wifiPhy;
+  ns3::NqosWifiMacHelper wifiMac;
+  ns3::WifiHelper wifi;
+
+  std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> > addDevMap;  // Address --> NetDevice --> Node --> node id
+  std::map <node_id_t, EventImplExt*> m_recvCallBackMap; // store the mem and obj of user-defined receive callback
 };
 
 }
