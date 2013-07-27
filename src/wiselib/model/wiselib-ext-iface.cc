@@ -43,9 +43,8 @@ WiselibExtIface::Debug (const char *msg)
 void 
 WiselibExtIface::SendWiselibMessage( node_id_t dest, size_t len, block_data_t *data, node_id_t local )
 {
-  // TBD: use MAC48 broadcast address
   uint32_t addr = dest;
-  ns3::Ipv4Address ipv4Addr(addr);
+  ns3::Ipv4Address ipv4Addr(addr);// although we use ipv4 address to differentiate the packet type here, we send packet only in mac layer
 
   if (ipv4Addr == ns3::Ipv4Address::GetBroadcast ())
     {
