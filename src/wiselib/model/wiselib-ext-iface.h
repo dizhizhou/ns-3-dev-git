@@ -163,6 +163,9 @@ public:
   // send mac layer packet
   void SendWiselibMessage( node_id_t dest, size_t len, block_data_t *data, node_id_t local );
 
+  // clock facet support
+  double GetNs3Time ();
+
 private:
   typedef ns3::EventId Ns3EventId;
   typedef ns3::Time Ns3Time;

@@ -137,7 +137,14 @@ WiselibExtIface::Init ()
   // Set it to adhoc mode
   wifiMac.SetType ("ns3::AdhocWifiMac");
 }
-  
+
+double
+WiselibExtIface::GetNs3Time ()
+{
+  return  ns3::Simulator::Now ().GetSeconds ();
+}
+
+
 
 }
 
