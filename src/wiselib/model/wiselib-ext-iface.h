@@ -81,7 +81,6 @@ public:
   typedef long size_t;
   typedef uint8_t message_id_t;
 
-
   WiselibExtIface ();
 
   virtual ~WiselibExtIface ();
@@ -166,6 +165,14 @@ public:
   // clock facet support
   double GetNs3Time ();
 
+  // position facet support
+  double GetPositionX (node_id_t id);
+  double GetPositionY (node_id_t id);
+  double GetPositionZ (node_id_t id);
+
+  // distance facet support
+  double GetDistance (node_id_t src, node_id_t dst);
+
 private:
   typedef ns3::EventId Ns3EventId;
   typedef ns3::Time Ns3Time;
@@ -180,6 +187,7 @@ private:
 
   std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> > addDevMap;  // Address --> NetDevice --> Node --> node id
   std::map <node_id_t, EventImplExt*> m_recvCallBackMap; // store the mem and obj of user-defined receive callback
+  std::map <node_id_t, ns3::Ptr<ns3::Node> > nodeMap; // store the node id and node object in ns3
 };
 
 }

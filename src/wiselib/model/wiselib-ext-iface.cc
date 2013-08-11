@@ -19,6 +19,8 @@
 #include "ns3/ipv4-address-helper.h"
 #include "ns3/packet.h"
 #include "ns3/node-container.h"
+#include "ns3/mobility-model.h"
+#include "ns3/vector.h"
 
 NS_LOG_COMPONENT_DEFINE ("WiselibExtIface");
 
@@ -92,8 +94,17 @@ WiselibExtIface::EnableRadio ()
 
   addDevMap.insert (std::pair<ns3::Address, ns3::Ptr<ns3::NetDevice> >
                         (device.Get (0)->GetAddress (), device.Get (0)));      
+  
+  node_id_t id = nodes.Get (nodes.GetN () - 1)->GetId ();
 
-  return nodes.Get (nodes.GetN () - 1)->GetId ();
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (id);
+  if (it == nodeMap.end ())
+    {
+      nodeMap.insert(std::pair<node_id_t, ns3::Ptr<ns3::Node> >(id, nodes.Get (nodes.GetN () - 1) ) );
+    }
+
+  return id;
 }
 
 
@@ -141,10 +152,83 @@ WiselibExtIface::Init ()
 double
 WiselibExtIface::GetNs3Time ()
 {
-  return  ns3::Simulator::Now ().GetSeconds ();
+  return ns3::Simulator::Now ().GetSeconds ();
 }
 
+double 
+WiselibExtIface::GetPositionX (node_id_t id)
+{
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (id);
+  if (it != nodeMap.end ())
+    {
+      ns3::Ptr<ns3::Object> object = (*it).second;
+      ns3::Ptr<ns3::MobilityModel> model = object->GetObject<ns3::MobilityModel> ();
+      return (model->GetPosition ()).x;        
+    }
 
+  return -1;
+}
+
+double 
+WiselibExtIface::GetPositionY (node_id_t id)
+{
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (id);
+  if (it != nodeMap.end ())
+    {
+      ns3::Ptr<ns3::Object> object = (*it).second;
+      ns3::Ptr<ns3::MobilityModel> model = object->GetObject<ns3::MobilityModel> ();
+      return (model->GetPosition ()).y;        
+    }
+
+  return -1;
+}
+
+double 
+WiselibExtIface::GetPositionZ (node_id_t id)
+{
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (id);
+  if (it != nodeMap.end ())
+    {
+      ns3::Ptr<ns3::Object> object = (*it).second;
+      ns3::Ptr<ns3::MobilityModel> model = object->GetObject<ns3::MobilityModel> ();
+      return (model->GetPosition ()).z;        
+    }
+
+  return -1;
+}
+
+double 
+WiselibExtIface::GetDistance (node_id_t src, node_id_t dst)
+{
+  ns3::Ptr<ns3::MobilityModel> srcModel;
+  ns3::Ptr<ns3::MobilityModel> dstModel;
+
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (src);
+  if (it != nodeMap.end ())
+    {
+      ns3::Ptr<ns3::Object> object = (*it).second;
+      srcModel = object->GetObject<ns3::MobilityModel> ();
+    }
+  else
+    return -1;
+
+  it = nodeMap.find (dst);
+  if (it != nodeMap.end ())
+    {
+      ns3::Ptr<ns3::Object> object = (*it).second;
+      dstModel = object->GetObject<ns3::MobilityModel> ();
+    }
+  else 
+    return -1;
+
+  double distance = ns3::CalculateDistance (srcModel->GetPosition (), dstModel->GetPosition ());
+
+  return distance;
+}
 
 }
 
