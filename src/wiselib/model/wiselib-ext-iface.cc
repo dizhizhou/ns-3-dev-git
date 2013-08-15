@@ -87,7 +87,7 @@ WiselibExtIface::EnableRadio ()
 
   ns3::MobilityHelper mobility;
   ns3::Ptr<ns3::ListPositionAllocator> positionAlloc = ns3::CreateObject<ns3::ListPositionAllocator> ();
-  positionAlloc->Add (ns3::Vector (0.0, 0.0, 0.0));
+  positionAlloc->Add (ns3::Vector (0.0, 0.0, 0.0)); // default position
   mobility.SetPositionAllocator (positionAlloc);
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (node);
@@ -101,7 +101,7 @@ WiselibExtIface::EnableRadio ()
   it = nodeMap.find (id);
   if (it == nodeMap.end ())
     {
-      nodeMap.insert(std::pair<node_id_t, ns3::Ptr<ns3::Node> >(id, nodes.Get (nodes.GetN () - 1) ) );
+      nodeMap.insert(std::pair<node_id_t, ns3::Ptr<ns3::Node> >(id, nodes.Get (nodes.GetN () -1) ) );
     }
 
   return id;
@@ -188,7 +188,7 @@ WiselibExtIface::GetPositionY (node_id_t id)
 double 
 WiselibExtIface::GetPositionZ (node_id_t id)
 {
-  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  std::map <node_id_t,ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
   it = nodeMap.find (id);
   if (it != nodeMap.end ())
     {
@@ -228,6 +228,21 @@ WiselibExtIface::GetDistance (node_id_t src, node_id_t dst)
   double distance = ns3::CalculateDistance (srcModel->GetPosition (), dstModel->GetPosition ());
 
   return distance;
+}
+
+void 
+WiselibExtIface::SetPosition (double x, double y, double z, node_id_t id)
+{
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (id);
+  if (it != nodeMap.end ())
+    {
+      // update node position
+      ns3::Ptr<ns3::Object> object = (*it).second;
+      ns3::Ptr<ns3::MobilityModel> model = object->GetObject<ns3::MobilityModel> ();
+      ns3::Vector pos(x,y,z);
+      model->SetPosition (pos);
+    }
 }
 
 }

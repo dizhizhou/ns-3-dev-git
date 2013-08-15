@@ -25,6 +25,7 @@
 #include "ns3/wifi-helper.h"
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/nqos-wifi-mac-helper.h"
+#include "ns3/vector.h"
 
 namespace wiselib {
 
@@ -169,6 +170,9 @@ public:
   double GetPositionX (node_id_t id);
   double GetPositionY (node_id_t id);
   double GetPositionZ (node_id_t id);
+  // set position support in position facet
+  void SetPosition (double x, double y, double z, node_id_t id);
+
 
   // distance facet support
   double GetDistance (node_id_t src, node_id_t dst);

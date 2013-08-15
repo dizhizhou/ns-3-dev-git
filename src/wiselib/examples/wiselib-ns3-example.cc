@@ -34,6 +34,9 @@ class Ns3ExampleApplication
 
         // each node has one radio instance
         // sender: radio[0]    receiver: radio[1], radio[2]
+        double pos_x = 0;
+        double pos_y = 0;
+        double pos_z = 0;
         for (uint16_t i = 0; i < MAX_NODES; i++)
           {
             radio[i] = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
@@ -51,9 +54,14 @@ class Ns3ExampleApplication
 
             position[i] = &wiselib::FacetProvider<Os, Os::Position>::get_facet( value );
             position[i]->bind (radio[i]->id ()); // bind position facet and radio facet on the same node
+            position[i]->set_position (pos_x,pos_y,pos_z, radio[i]->id ()); // position can only be setted after enable_radio () operation
 
             distance[i] = &wiselib::FacetProvider<Os, Os::Distance>::get_facet( value );
             distance[i]->bind (radio[i]->id ());
+
+            pos_x += 10;
+            pos_y += 10;
+            pos_z += 10;
           }
 
         debug_->debug( "%f: Init simulation", clock_->time ());        
@@ -113,13 +121,13 @@ class Ns3ExampleApplication
 
         for (uint16_t i = 0; i < MAX_NODES; i++)
           {
-            debug_->debug ("  Create Node %d at position ( %f, %f, %f )", 
+            debug_->debug ("  Set node %d at position ( %f, %f, %f )", 
                                   radio[i]->id (), 
-                                  (position[i]->position ()).x(), 
-                                  (position[i]->position ()).y(),
-                                  (position[i]->position ()).z());
+                                  (*position[i])().x(), 
+                                  (*position[i])().y(),
+                                  (*position[i])().z());
             debug_->debug ("    Distance from %d to %d is %f", radio[i]->id (), radio[0]->id (), 
-                                                      distance[i]->distance(radio[0]->id ()) );
+                                                      (*distance[i])(radio[0]->id ()) );
           }
       }
 
