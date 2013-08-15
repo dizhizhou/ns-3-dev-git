@@ -8,6 +8,7 @@
 #include "external_interface/ns3/ns3_clock.h"
 #include "external_interface/ns3/ns3_position.h"
 #include "external_interface/ns3/ns3_distance.h"
+#include "external_interface/ns3/ns3_rand.h"
 #include "external_interface/ns3/ns3_facet_provider.h"
 #include "external_interface/ns3/ns3_wiselib_application.h"
 #include "algorithms/localization/distance_based/math/vec.h"
@@ -29,6 +30,7 @@ class Ns3ExampleApplication
         debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
         timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
         clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+        rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet( value );
 
         // each node has one radio instance
         // sender: radio[0]    receiver: radio[1], radio[2]
@@ -64,6 +66,9 @@ class Ns3ExampleApplication
 
         timer_->set_timer<Ns3ExampleApplication,
                           &Ns3ExampleApplication::start_distance_position_facet>( 7000, this, 0 );
+
+        timer_->set_timer<Ns3ExampleApplication,
+                          &Ns3ExampleApplication::start_rand_facet>( 8000, this, 0 );
 
       };
 
@@ -118,6 +123,12 @@ class Ns3ExampleApplication
           }
       }
 
+    void start_rand_facet (void*)
+      {
+         debug_->debug ("\n%f: Rand facet test", clock_->time () );
+         debug_->debug( "  Generate random number (0,100): %d", (*rand_)(100));
+      }
+
   private:
     Os::Debug::self_pointer_t debug_;
     Os::Timer::self_pointer_t timer_;
@@ -125,6 +136,7 @@ class Ns3ExampleApplication
     Os::Clock::self_pointer_t clock_;
     Os::Position::self_pointer_t position[MAX_NODES];
     Os::Distance::self_pointer_t distance[MAX_NODES];
+    Os::Rand::self_pointer_t rand_;
 };
 
 wiselib::WiselibApplication<Os, Ns3ExampleApplication> example_app;
