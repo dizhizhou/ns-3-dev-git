@@ -27,6 +27,7 @@ NS_LOG_COMPONENT_DEFINE ("WiselibExtIface");
 namespace wiselib {
 
 WiselibExtIface::WiselibExtIface ()
+  : m_readCallbackIndex (0)
 {
   Init ();
 }
@@ -242,6 +243,28 @@ WiselibExtIface::SetPosition (double x, double y, double z, node_id_t id)
       ns3::Ptr<ns3::MobilityModel> model = object->GetObject<ns3::MobilityModel> ();
       ns3::Vector pos(x,y,z);
       model->SetPosition (pos);
+    }
+}
+
+void 
+WiselibExtIface::Receive (size_t size, block_data_t* data, int index)
+{
+  std::map <int, EventImplExt*>::iterator it = m_readCallbackMap.end (); 
+  it = m_readCallbackMap.find (index);
+  if ( it != m_readCallbackMap.end ())
+    {
+      it->second->ReadCallback (sizeof(data), data);
+    }
+}
+
+void 
+WiselibExtIface::UnregReadCallback (int index)
+{
+  std::map <int, EventImplExt*>::iterator it = m_readCallbackMap.end (); 
+  it = m_readCallbackMap.find (index);
+  if ( it != m_readCallbackMap.end ())
+    {
+      m_readCallbackMap.erase (it);
     }
 }
 

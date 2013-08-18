@@ -10,6 +10,7 @@
 #include "external_interface/ns3/ns3_distance.h"
 #include "external_interface/ns3/ns3_rand.h"
 #include "external_interface/ns3/ns3_facet_provider.h"
+#include "external_interface/ns3/ns3_debug_com_uart.h"
 #include "external_interface/ns3/ns3_wiselib_application.h"
 #include "algorithms/localization/distance_based/math/vec.h"
 
@@ -62,6 +63,10 @@ class Ns3ExampleApplication
             pos_x += 10;
             pos_y += 10;
             pos_z += 10;
+
+            debugComUart[i] = &wiselib::FacetProvider<Os, Os::DebugComUart>::get_facet( value );
+            debugComUart[i]->enable_serial_comm();
+            debugComUart[i]->init (*debug_);
           }
 
         debug_->debug( "%f: Init simulation", clock_->time ());        
@@ -77,6 +82,9 @@ class Ns3ExampleApplication
 
         timer_->set_timer<Ns3ExampleApplication,
                           &Ns3ExampleApplication::start_rand_facet>( 8000, this, 0 );
+
+        timer_->set_timer<Ns3ExampleApplication,
+                          &Ns3ExampleApplication::start_serial_comm_facet>( 9000, this, 0 );
 
       };
 
@@ -137,6 +145,39 @@ class Ns3ExampleApplication
          debug_->debug( "  Generate random number (0,100): %d", (*rand_)(100));
       }
 
+    void start_serial_comm_facet (void*)
+    {
+       debug_->debug ("\n%f: Serial communication facet test", clock_->time () );
+        for (uint16_t i = 0; i < MAX_NODES; i++)
+          {
+            Os::DebugComUart::block_data_t message[] = "test\0";
+            debugComUart[i]->write (sizeof(message), message);
+            int idx = debugComUart[i]->reg_read_callback <Ns3ExampleApplication,
+                         &Ns3ExampleApplication::read_message>(this);
+            debugComUart[i]->receive (sizeof(message), message);
+            
+            // re-register read callback for node 2
+            if (i == 2)
+              {
+                debugComUart[i]->unreg_read_callback (idx);
+                debugComUart[i]->reg_read_callback <Ns3ExampleApplication,
+                         &Ns3ExampleApplication::read_message1>(this);
+              }
+  
+            debugComUart[i]->receive (sizeof(message), message);
+          }
+    }
+
+    void read_message (Os::DebugComUart::size_t size, Os::DebugComUart::block_data_t* data)
+    {
+      debug_->debug( "    receive message: %s", data );
+    }
+
+    void read_message1 (Os::DebugComUart::size_t size, Os::DebugComUart::block_data_t* data)
+    {
+      debug_->debug( "    receive re-registered message: %s", data );
+    }
+
   private:
     Os::Debug::self_pointer_t debug_;
     Os::Timer::self_pointer_t timer_;
@@ -145,6 +186,8 @@ class Ns3ExampleApplication
     Os::Position::self_pointer_t position[MAX_NODES];
     Os::Distance::self_pointer_t distance[MAX_NODES];
     Os::Rand::self_pointer_t rand_;
+    Os::DebugComUart::self_pointer_t debugComUart[MAX_NODES];
+
 };
 
 wiselib::WiselibApplication<Os, Ns3ExampleApplication> example_app;

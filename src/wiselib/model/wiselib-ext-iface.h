@@ -9,6 +9,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <climits>
 #include "ns3/simulator.h"
 #include "ns3/event-id.h"
 
@@ -36,6 +37,7 @@ public:
    virtual ~EventImplExt () { }
 
    virtual void RecvCallback (uint32_t , size_t, unsigned char*) { };
+   virtual void ReadCallback (size_t, unsigned char*) { };
 };
 
 template <typename MEM, typename OBJ>
@@ -72,6 +74,39 @@ private:
   return ev;
 }
 
+template <typename MEM, typename OBJ>
+EventImplExt * MakeReadCallback (MEM mem_ptr, OBJ obj)
+{
+  // zero argument version
+  class EventMemberImpl0 : public EventImplExt
+  {
+public:
+    EventMemberImpl0 (OBJ obj, MEM function)
+      : m_obj (obj),
+        m_function (function)
+    {
+    }
+    virtual ~EventMemberImpl0 ()
+    {
+    }
+  
+    // call use-defined callback
+    virtual void ReadCallback (size_t len, unsigned char* data)
+    {
+      (ns3::EventMemberImplObjTraits<OBJ>::GetReference (m_obj).*m_function)(len, data);
+    }
+
+private:
+    
+    virtual void Notify (void)
+    {
+    }
+    
+    OBJ m_obj;
+    MEM m_function;
+  } *ev = new EventMemberImpl0 (obj, mem_ptr);
+  return ev;
+}
 
 class WiselibExtIface
 {
@@ -120,7 +155,7 @@ public:
 
           // store function and member which will be called in NS-3 callback
           EventImplExt *event = MakeRecvCallback(TMethod, obj_pnt);
-          m_recvCallBackMap.insert(std::pair<node_id_t,EventImplExt*>(local, event));
+          m_recvCallbackMap.insert(std::pair<node_id_t,EventImplExt*>(local, event));
         }
 
       return true;
@@ -139,9 +174,9 @@ public:
           node_id_t sendId = (addDevMap.find (from))->second->GetNode ()->GetId ();
           node_id_t recvId = it->second->GetNode ()->GetId ();
 
-          std::map <node_id_t, EventImplExt*>::iterator itMap = m_recvCallBackMap.end ();
-          itMap = m_recvCallBackMap.find (recvId);       
-          if (itMap != m_recvCallBackMap.end ())
+          std::map <node_id_t, EventImplExt*>::iterator itMap = m_recvCallbackMap.end ();
+          itMap = m_recvCallbackMap.find (recvId);       
+          if (itMap != m_recvCallbackMap.end ())
             {
               itMap->second->RecvCallback (sendId, sizeof(buffer), buffer);
             }
@@ -173,15 +208,35 @@ public:
   // set position support in position facet
   void SetPosition (double x, double y, double z, node_id_t id);
 
-
   // distance facet support
   double GetDistance (node_id_t src, node_id_t dst);
 
+  // Serial communication facet
+  template<typename T, void (T::*TMethod)(size_t, block_data_t* )>
+  int RegReadCallback( T *obj_pnt )
+    {
+      EventImplExt *event = MakeReadCallback(TMethod, obj_pnt);
+      int index = m_readCallbackIndex; // unique identifer of this read callback  
+
+      // overflow??
+      if ( m_readCallbackIndex > INT_MAX || m_readCallbackIndex < INT_MIN)
+        return -1;
+
+      m_readCallbackIndex++;
+      m_readCallbackMap.insert(std::pair<int, EventImplExt*>(index, event));
+      return index;
+    }
+
+   void UnregReadCallback (int index);
+
+   void Receive (size_t size, block_data_t* data, int index);
+   
 private:
   typedef ns3::EventId Ns3EventId;
   typedef ns3::Time Ns3Time;
 
   Ns3EventId m_timerFacetEvent;
+  int m_readCallbackIndex;                         // unique identifer of read callbacks
 
   // wifi parameters
   ns3::NodeContainer nodes;                        // note: we use the node index in index as the node id
@@ -190,8 +245,9 @@ private:
   ns3::WifiHelper wifi;
 
   std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> > addDevMap;  // Address --> NetDevice --> Node --> node id
-  std::map <node_id_t, EventImplExt*> m_recvCallBackMap; // store the mem and obj of user-defined receive callback
+  std::map <node_id_t, EventImplExt*> m_recvCallbackMap; // store the mem and obj of user-defined receive callbacks
   std::map <node_id_t, ns3::Ptr<ns3::Node> > nodeMap; // store the node id and node object in ns3
+  std::map <int, EventImplExt*> m_readCallbackMap; // store the mem and obj of user-defined read callbacks
 };
 
 }
