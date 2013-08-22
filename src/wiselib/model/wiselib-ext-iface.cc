@@ -268,5 +268,17 @@ WiselibExtIface::UnregReadCallback (int index)
     }
 }
 
+void 
+ExtendedDataClass::SetRss (double rss)
+{
+  m_rss = rss;
+}
+        
+double 
+ExtendedDataClass::GetRss () const
+{
+  return ExtendedDataClass::m_rss;
+}
+
 }
 

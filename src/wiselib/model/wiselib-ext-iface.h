@@ -30,6 +30,9 @@
 
 namespace wiselib {
 
+class WiselibExtIface;
+class ExtendedDataClass;
+
 class EventImplExt : public ns3::EventImpl
 {
 public:
@@ -37,13 +40,13 @@ public:
    virtual ~EventImplExt () { }
 
    virtual void RecvCallback (uint32_t , size_t, unsigned char*) { };
+   virtual void ExtendedDataRecvCallback (uint32_t , size_t, unsigned char*, ExtendedDataClass*) { };
    virtual void ReadCallback (size_t, unsigned char*) { };
 };
 
 template <typename MEM, typename OBJ>
 EventImplExt * MakeRecvCallback (MEM mem_ptr, OBJ obj)
 {
-  // zero argument version
   class EventMemberImpl0 : public EventImplExt
   {
 public:
@@ -56,7 +59,7 @@ public:
     {
     }
   
-    // call use-defined callback
+    // call user-defined callback
     virtual void RecvCallback (uint32_t from, size_t len, unsigned char* data)
     {
       (ns3::EventMemberImplObjTraits<OBJ>::GetReference (m_obj).*m_function)(from, len, data);
@@ -73,6 +76,40 @@ private:
   } *ev = new EventMemberImpl0 (obj, mem_ptr);
   return ev;
 }
+
+template <typename MEM, typename OBJ>
+EventImplExt * MakeExtendedDataRecvCallback (MEM mem_ptr, OBJ obj)
+{
+  class EventMemberImpl0 : public EventImplExt
+  {
+public:
+    EventMemberImpl0 (OBJ obj, MEM function)
+      : m_obj (obj),
+        m_function (function)
+    {
+    }
+    virtual ~EventMemberImpl0 ()
+    {
+    }
+  
+    // call user-defined callback
+    virtual void ExtendedDataRecvCallback (uint32_t from, size_t len, unsigned char* data, ExtendedDataClass *extData)
+    {
+      (ns3::EventMemberImplObjTraits<OBJ>::GetReference (m_obj).*m_function)(from, len, data, extData);
+    }
+
+private:
+    
+    virtual void Notify (void)
+    {
+    }
+    
+    OBJ m_obj;
+    MEM m_function;
+  } *ev = new EventMemberImpl0 (obj, mem_ptr);
+  return ev;
+}
+
 
 template <typename MEM, typename OBJ>
 EventImplExt * MakeReadCallback (MEM mem_ptr, OBJ obj)
@@ -108,10 +145,26 @@ private:
   return ev;
 }
 
+class ExtendedDataClass 
+{
+  public:
+    ExtendedDataClass () 
+      : m_rss (-80)
+      {
+      }
+
+    void SetRss (double rss);
+    double GetRss () const;
+
+  private:
+    double m_rss; // the received signal strength (RSS) in dBm      
+};
+
+
 class WiselibExtIface
 {
 public:
-
+  
   typedef uint32_t node_id_t;    // we use unsigned because NS-3 does not have node id smaller than zero
   typedef unsigned char block_data_t;
   typedef long size_t;
@@ -187,6 +240,60 @@ public:
         std::cout << "Unknow node id " << std::endl;
       return true;
     }
+  
+  // extended data radio facet support
+  template<typename T, void (T::*TMethod)( node_id_t, size_t, block_data_t*, ExtendedDataClass* )>
+  bool RegExtendedDataRecvCallback( T *obj_pnt, node_id_t local ) 
+    {
+      ns3::Address addr = nodes.Get (local)->GetDevice (0)->GetAddress ();
+      std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> >::iterator it = addDevMap.end (); 
+      it = addDevMap.find (addr);
+      if (it != addDevMap.end ()) 
+        {
+          // regeister NS-3 callback
+          it->second->SetReceiveCallback (ns3::MakeCallback 
+                                  (&WiselibExtIface::DoRegExtendedDataRecvCallback, this));
+
+          // store function and member which will be called in NS-3 callback
+          EventImplExt *event = MakeExtendedDataRecvCallback(TMethod, obj_pnt);
+          m_recvCallbackMap.insert(std::pair<node_id_t,EventImplExt*>(local, event));
+        }
+
+      return true;
+    }
+
+  bool DoRegExtendedDataRecvCallback (ns3::Ptr<ns3::NetDevice> device, ns3::Ptr<const ns3::Packet> packet,
+                          uint16_t protocol, const ns3::Address &from) 
+    {
+      uint8_t buffer[packet->GetSize ()]; 
+      packet->CopyData (buffer, sizeof(buffer)); 
+      // call ns3::Node::ReceiveFromDevice method ?
+      std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> >::iterator it = addDevMap.end (); 
+      it = addDevMap.find (device->GetAddress ());
+      if (it != addDevMap.end ()) 
+        {
+          node_id_t sendId = (addDevMap.find (from))->second->GetNode ()->GetId ();
+          node_id_t recvId = it->second->GetNode ()->GetId ();
+
+          std::map <node_id_t, EventImplExt*>::iterator itMap = m_recvCallbackMap.end ();
+          itMap = m_recvCallbackMap.find (recvId);       
+          if (itMap != m_recvCallbackMap.end ())
+            {
+              // calculate rx power
+              ExtendedDataClass extData;
+              extData.SetRss (-80);
+              itMap->second->ExtendedDataRecvCallback (sendId, sizeof(buffer), buffer, &extData);
+            }
+          else
+            std::cout << "Unknow receiver node id " << std::endl;
+        }
+      else 
+        std::cout << "Unknow node id " << std::endl;
+
+      return true;
+    }
+
+
 
   // define default phy (802.11b), mac (adhoc) and wifi helper instance
   void Init ();
