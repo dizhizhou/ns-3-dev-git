@@ -27,6 +27,8 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/nqos-wifi-mac-helper.h"
 #include "ns3/vector.h"
+#include "ns3/wifi-net-device.h"
+#include "ns3/wifi-phy.h"
 
 namespace wiselib {
 
@@ -279,9 +281,9 @@ public:
           itMap = m_recvCallbackMap.find (recvId);       
           if (itMap != m_recvCallbackMap.end ())
             {
-              // calculate rx power
+              // any other way to calculate rx power in run-time?             
               ExtendedDataClass extData;
-              extData.SetRss (-80);
+              extData.SetRss (-80); // currently, we use fix rss loss model
               itMap->second->ExtendedDataRecvCallback (sendId, sizeof(buffer), buffer, &extData);
             }
           else
