@@ -155,6 +155,10 @@ class ExtendedDataClass
       {
       }
 
+    virtual ~ExtendedDataClass ()
+      {
+      }
+
     void SetRss (double rss);
     double GetRss () const;
 
@@ -162,6 +166,36 @@ class ExtendedDataClass
     double m_rss; // the received signal strength (RSS) in dBm      
 };
 
+class TxPowerClass
+{
+  public:
+    TxPowerClass () 
+      : m_txPowerStart(16.0206),
+        m_txPowerEnd (16.0206)
+      {
+      }
+
+    virtual ~TxPowerClass ()
+      {
+      }
+
+    void SetTxPowerStart (double dbm);
+    void SetTxPowerEnd (double dbm);
+    double GetTxPowerStart () const;
+    double GetTxPowerEnd () const;
+
+    double DbmToW (double dbm) const;
+    double DbToRatio (double db) const;
+    double WToDbm (double w) const;
+    double RatioToDb (double ratio) const;
+
+    // overload operators    
+
+  private:
+
+    double m_txPowerStart; // Minimum available transmission level (dbm).
+    double m_txPowerEnd;  // Maximum available transmission level (dbm).
+};
 
 class WiselibExtIface
 {
@@ -339,6 +373,10 @@ public:
    void UnregReadCallback (int index);
 
    void Receive (size_t size, block_data_t* data, int index);
+
+   // tx power radio facet
+   void SetTxPower (TxPowerClass &txpower, node_id_t id );
+   TxPowerClass GetTxPower (node_id_t id);
    
 private:
   typedef ns3::EventId Ns3EventId;
@@ -356,6 +394,7 @@ private:
   std::map<ns3::Address, ns3::Ptr<ns3::NetDevice> > addDevMap;  // Address --> NetDevice --> Node --> node id
   std::map <node_id_t, EventImplExt*> m_recvCallbackMap; // store the mem and obj of user-defined receive callbacks
   std::map <node_id_t, ns3::Ptr<ns3::Node> > nodeMap; // store the node id and node object in ns3
+  std::map <node_id_t, std::pair<double, double> > nodeTxPowerMap; // store the txpower info of the node 
   std::map <int, EventImplExt*> m_readCallbackMap; // store the mem and obj of user-defined read callbacks
 };
 

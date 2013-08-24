@@ -6,6 +6,7 @@
 #include "external_interface/ns3/ns3_timer.h"
 #include "external_interface/ns3/ns3_radio.h"
 #include "external_interface/ns3/ns3_extdata_radio.h"
+#include "external_interface/ns3/ns3_tx_radio.h"
 #include "external_interface/ns3/ns3_clock.h"
 #include "external_interface/ns3/ns3_position.h"
 #include "external_interface/ns3/ns3_distance.h"
@@ -17,12 +18,14 @@
 
 #include "ns3/simulator.h"
 #include "ns3/ptr.h"
+#include "ns3/wiselib-ext-iface.h"
 
 using namespace wiselib;
 
 typedef Ns3OsModel Os;
 #define MAX_NODES 3
-#define ENABLE_EXTDATA_RADIO true
+#define ENABLE_EXTDATA_RADIO false
+#define ENABLE_TXPOWER_RADIO false
 
 class Ns3ExampleApplication
 {
@@ -42,16 +45,29 @@ class Ns3ExampleApplication
         double pos_z = 0;
         for (uint16_t i = 0; i < MAX_NODES; i++)
           {
-            if ( !ENABLE_EXTDATA_RADIO )
-              {
-                radio[i] = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
-                radio[i]->enable_radio ();
-              }
-            else
+
+            if ( ENABLE_EXTDATA_RADIO )
               {
                 extDataRadio[i] = &wiselib::FacetProvider<Os, Os::ExtendedDataRadio>::get_facet( value );
-                extDataRadio[i]->enable_radio ();
+                extDataRadio[i]->enable_radio ();              
               }
+            else if ( ENABLE_TXPOWER_RADIO )
+              {
+                /* tx power radio facet test */
+                debug_->debug ("\n%f: TxPowerRadio facet test", clock_->time () );\
+                txRadio[i] = &wiselib::FacetProvider<Os, Os::TxRadio>::get_facet( value );
+                txRadio[i]->enable_radio ();
+                TxPowerClass txpower;
+                txpower.SetTxPowerStart (17);
+                txpower.SetTxPowerEnd (18);
+                txRadio[i]->set_power (txpower);
+                TxPowerClass txpower1;
+                txpower1 = txRadio[i]->power ();
+                debug_->debug("Start %f , end %f ",txpower1.GetTxPowerStart (), txpower1.GetTxPowerEnd () );
+              }
+
+            radio[i] = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+            radio[i]->enable_radio ();
 
             // use different receive callbacks for receiver nodes
             if ( i == 1)
@@ -219,6 +235,7 @@ class Ns3ExampleApplication
                     extDataRadio[1]->id() );
        Os::ExtendedDataRadio::block_data_t message2[] = "hello world unicast!\0";
                extDataRadio[0]->send( extDataRadio[1]->id(), sizeof(message2), message2 );
+      
     }
 
     void receive_extdata_radio1_message( Os::ExtendedDataRadio::node_id_t from, Os::ExtendedDataRadio::size_t len, 
@@ -244,6 +261,7 @@ class Ns3ExampleApplication
     Os::Timer::self_pointer_t timer_;
     Os::Radio::self_pointer_t radio[MAX_NODES];
     Os::ExtendedDataRadio::self_pointer_t extDataRadio[MAX_NODES];
+    Os::TxRadio::self_pointer_t txRadio[MAX_NODES];
     Os::Clock::self_pointer_t clock_;
     Os::Position::self_pointer_t position[MAX_NODES];
     Os::Distance::self_pointer_t distance[MAX_NODES];

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstdarg>
 #include <cstdio>
+#include <cmath>
 
 #include "wiselib-ext-iface.h"
 #include "ns3/log.h"
@@ -21,6 +22,8 @@
 #include "ns3/node-container.h"
 #include "ns3/mobility-model.h"
 #include "ns3/vector.h"
+#include "ns3/yans-wifi-phy.h"
+#include "ns3/wifi-net-device.h"
 
 NS_LOG_COMPONENT_DEFINE ("WiselibExtIface");
 
@@ -278,6 +281,119 @@ double
 ExtendedDataClass::GetRss () const
 {
   return ExtendedDataClass::m_rss;
+}
+
+double
+TxPowerClass::DbToRatio (double dB) const
+{
+  double ratio = std::pow (10.0, dB / 10.0);
+  return ratio;
+}
+
+double
+TxPowerClass::DbmToW (double dBm) const
+{
+  double mW = std::pow (10.0, dBm / 10.0);
+  return mW / 1000.0;
+}
+
+double
+TxPowerClass::WToDbm (double w) const
+{
+  return 10.0 * std::log10 (w * 1000.0);
+}
+
+double
+TxPowerClass::RatioToDb (double ratio) const
+{
+  return 10.0 * std::log10 (ratio);
+}
+
+void 
+TxPowerClass::SetTxPowerStart (double dbm)
+{
+  m_txPowerStart = dbm;
+}
+
+void 
+TxPowerClass::SetTxPowerEnd (double dbm)
+{
+  m_txPowerEnd = dbm;
+}
+
+double 
+TxPowerClass::GetTxPowerStart () const
+{
+  return m_txPowerStart;
+}
+
+double 
+TxPowerClass::GetTxPowerEnd () const
+{
+  return m_txPowerEnd;
+}
+
+void 
+WiselibExtIface::SetTxPower (TxPowerClass &txpower, node_id_t id )
+{
+  // find wifi phy objective for node id
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (id);
+  if (it != nodeMap.end ())
+    {
+      ns3::Ptr<ns3::NetDevice> dev = (*it).second->GetDevice (0);
+      ns3::Ptr<ns3::WifiNetDevice> wifiDev = ns3::DynamicCast<ns3::WifiNetDevice> (dev);
+      ns3::Ptr<ns3::WifiPhy> phy = wifiDev->GetPhy ();
+      ns3::Ptr<ns3::YansWifiPhy> wifiPhy = ns3::DynamicCast<ns3::YansWifiPhy> (phy);
+
+      // set tx power 
+      double start = txpower.GetTxPowerStart ();
+      wifiPhy->SetTxPowerStart (start);
+      double end = txpower.GetTxPowerEnd ();
+      wifiPhy->SetTxPowerEnd (end);
+
+      // store tx power info to this node (because there aren't GetTxPowerStart and GetTxPowerEnd methods in WifiPhy)
+      std::map <node_id_t, std::pair<double, double> >::iterator itMap = nodeTxPowerMap.end ();
+      itMap = nodeTxPowerMap.find (id);
+      if ( itMap == nodeTxPowerMap.end ())
+        {
+          std::pair<double, double> txPowerInfo;
+          txPowerInfo = std::make_pair (start, end);
+          nodeTxPowerMap.insert (std::pair<node_id_t, std::pair<double, double> > (id, txPowerInfo ) );
+        }
+    }
+
+}
+
+TxPowerClass 
+WiselibExtIface::GetTxPower (node_id_t id)
+{
+  TxPowerClass txpower;
+
+  // find wifi phy objective for node id
+  std::map <node_id_t, ns3::Ptr<ns3::Node> >::iterator it = nodeMap.end ();
+  it = nodeMap.find (id);
+  if (it != nodeMap.end ())
+    {
+      ns3::Ptr<ns3::NetDevice> dev = (*it).second->GetDevice (0);
+      ns3::Ptr<ns3::WifiNetDevice> wifiDev = ns3::DynamicCast<ns3::WifiNetDevice> (dev);
+      ns3::Ptr<ns3::WifiPhy> phy = wifiDev->GetPhy ();
+      ns3::Ptr<ns3::YansWifiPhy> wifiPhy = ns3::DynamicCast<ns3::YansWifiPhy> (phy);
+
+      // set tx power 
+      std::map <node_id_t, std::pair<double, double> >::iterator itMap = nodeTxPowerMap.end ();
+      itMap = nodeTxPowerMap.find (id);
+      if ( itMap != nodeTxPowerMap.end ())
+        {
+          double start = (*itMap).second.first;
+          double end = (*itMap).second.second;
+
+          txpower.SetTxPowerStart (start);
+          txpower.SetTxPowerEnd (end);
+        }
+    }
+
+  return txpower;
 }
 
 }
