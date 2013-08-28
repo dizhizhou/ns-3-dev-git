@@ -185,11 +185,11 @@ class TxPowerClass
     double GetTxPowerEnd () const;
    
     // APIs to Wiselib user
-    void set_ratio(int ratio);  // set tx power by input ratio
+    void set_ratio(int ratio);  // set tx power start and end to the same value by input ratio
     TxPowerClass from_ratio(int); // return TxPowerClass object based on input ratio
     int to_ratio() const;  // return ratio based on the txpower start in this class
     TxPowerClass from_dB(int db); // return TxPowerclass object based on input dbm
-    void set_dB(int);   // set txpower start
+    void set_dB(int);   // set txpower start and end to the same value 
     int to_dB() const;  // return txpower start
     
   private:
