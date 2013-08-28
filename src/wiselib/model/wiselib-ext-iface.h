@@ -183,13 +183,24 @@ class TxPowerClass
     void SetTxPowerEnd (double dbm);
     double GetTxPowerStart () const;
     double GetTxPowerEnd () const;
-
-    double DbmToW (double dbm) const;
+   
+    // APIs to Wiselib user
+    void set_ratio(int ratio);  // set tx power by input ratio
+    TxPowerClass from_ratio(int); // return TxPowerClass object based on input ratio
+    int to_ratio() const;  // return ratio based on the txpower start in this class
+    TxPowerClass from_dB(int db); // return TxPowerclass object based on input dbm
+    void set_dB(int);   // set txpower start
+    int to_dB() const;  // return txpower start
+    
+  private:
+     TxPowerClass (double pw) 
+      : m_txPowerStart(pw),
+        m_txPowerEnd (pw)
+      {
+      }
+   
     double DbToRatio (double db) const;
-    double WToDbm (double w) const;
     double RatioToDb (double ratio) const;
-
-    // overload operators    
 
   private:
 

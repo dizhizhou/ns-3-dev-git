@@ -283,24 +283,52 @@ ExtendedDataClass::GetRss () const
   return ExtendedDataClass::m_rss;
 }
 
+void 
+TxPowerClass::set_ratio(int ratio)
+{
+  this->SetTxPowerStart ( RatioToDb (static_cast<double>(ratio) ) );
+  this->SetTxPowerEnd ( RatioToDb(static_cast<double>(ratio) ) );
+}
+
+TxPowerClass 
+TxPowerClass::from_ratio(int ratio)
+{
+  TxPowerClass txpower ( RatioToDb (static_cast<double>(ratio) ) );
+  return txpower;
+}
+
+int 
+TxPowerClass::to_ratio() const
+{
+  double ratio = DbToRatio(this->GetTxPowerStart ());
+  return static_cast<int>(ratio);
+}
+
+TxPowerClass
+TxPowerClass::from_dB(int db)
+{
+  TxPowerClass txpower( static_cast<double>(db) );
+  return txpower;
+}
+
+void 
+TxPowerClass::set_dB(int db)
+{
+  this->SetTxPowerStart ( static_cast<double>(db) );
+  this->SetTxPowerEnd ( static_cast<double>(db) );
+}
+
+int 
+TxPowerClass::to_dB() const
+{
+  return static_cast<int>(this->GetTxPowerStart ()); 
+}
+
 double
 TxPowerClass::DbToRatio (double dB) const
 {
   double ratio = std::pow (10.0, dB / 10.0);
   return ratio;
-}
-
-double
-TxPowerClass::DbmToW (double dBm) const
-{
-  double mW = std::pow (10.0, dBm / 10.0);
-  return mW / 1000.0;
-}
-
-double
-TxPowerClass::WToDbm (double w) const
-{
-  return 10.0 * std::log10 (w * 1000.0);
 }
 
 double
@@ -310,7 +338,7 @@ TxPowerClass::RatioToDb (double ratio) const
 }
 
 void 
-TxPowerClass::SetTxPowerStart (double dbm)
+TxPowerClass::SetTxPowerStart (double dbm )
 {
   m_txPowerStart = dbm;
 }
