@@ -1,12 +1,29 @@
-// Author: Dizhi Zhou (dizhi.zhou@gmail.com)
+/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+/*
+ * Copyright (c) 2007 Georgia Tech Research Corporation
+ * Copyright (c) 2010 Adrian Sai-wah Tam
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ * Author: Dizhi Zhou (dizhi.zhou@gmail.com)
+ */
 
 #include <iostream>
 #include "external_interface/ns3/ns3_os.h"
 #include "external_interface/ns3/ns3_debug.h"
 #include "external_interface/ns3/ns3_timer.h"
 #include "external_interface/ns3/ns3_radio.h"
-#include "external_interface/ns3/ns3_extdata_radio.h"
-#include "external_interface/ns3/ns3_tx_radio.h"
 #include "external_interface/ns3/ns3_clock.h"
 #include "external_interface/ns3/ns3_position.h"
 #include "external_interface/ns3/ns3_distance.h"
@@ -46,28 +63,23 @@ class Ns3ExampleApplication
         for (uint16_t i = 0; i < MAX_NODES; i++)
           {
 
-            if ( ENABLE_EXTDATA_RADIO )
-              {
-                extDataRadio[i] = &wiselib::FacetProvider<Os, Os::ExtendedDataRadio>::get_facet( value );
-                extDataRadio[i]->enable_radio ();              
-              }
-            else if ( ENABLE_TXPOWER_RADIO )
-              {
-                /* tx power radio facet test */
-                debug_->debug ("\n%f: TxPowerRadio facet test", clock_->time () );\
-                txRadio[i] = &wiselib::FacetProvider<Os, Os::TxRadio>::get_facet( value );
-                txRadio[i]->enable_radio ();
-                TxPowerClass txpower;
-                txpower.SetTxPowerStart (17);
-                txpower.SetTxPowerEnd (18);
-                txRadio[i]->set_power (txpower);
-                TxPowerClass txpower1;
-                txpower1 = txRadio[i]->power ();
-                debug_->debug("Start %f , end %f ",txpower1.GetTxPowerStart (), txpower1.GetTxPowerEnd () );
-              }
 
             radio[i] = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
             radio[i]->enable_radio ();
+
+            if ( ENABLE_TXPOWER_RADIO )
+              {
+                /* tx power radio facet test */
+                debug_->debug ("\n%f: TxPowerRadio facet test", clock_->time () );\
+                TxPowerClass txpower;
+                txpower.SetTxPowerStart (17);
+                txpower.SetTxPowerEnd (17);
+                radio[i]->set_power (txpower);
+                TxPowerClass txpower1;
+                txpower1 = radio[i]->power ();
+                debug_->debug("Start %f , end %f ",txpower1.GetTxPowerStart (), txpower1.GetTxPowerEnd () );
+              }
+
 
             // use different receive callbacks for receiver nodes
             if ( i == 1)
@@ -76,7 +88,7 @@ class Ns3ExampleApplication
                   radio[i]->reg_recv_callback <Ns3ExampleApplication,
                             &Ns3ExampleApplication::receive_radio1_message>(this);
                 else
-                  extDataRadio[i]->reg_recv_callback <Ns3ExampleApplication,
+                  radio[i]->reg_recv_callback <Ns3ExampleApplication,
                             &Ns3ExampleApplication::receive_extdata_radio1_message>(this);
               }
             else if ( i == 2)
@@ -85,52 +97,46 @@ class Ns3ExampleApplication
                   radio[i]->reg_recv_callback <Ns3ExampleApplication,
                             &Ns3ExampleApplication::receive_radio2_message>(this);
                 else
-                  extDataRadio[i]->reg_recv_callback <Ns3ExampleApplication,
+                  radio[i]->reg_recv_callback <Ns3ExampleApplication,
                             &Ns3ExampleApplication::receive_extdata_radio2_message>(this);
              }
 
-            if  ( !ENABLE_EXTDATA_RADIO )
-              {
-                position[i] = &wiselib::FacetProvider<Os, Os::Position>::get_facet( value );
-                position[i]->bind (radio[i]->id ()); // bind position facet and radio facet on the same node
-                position[i]->set_position (pos_x,pos_y,pos_z, radio[i]->id ()); // position can only be setted after enable_radio () operation
+            position[i] = &wiselib::FacetProvider<Os, Os::Position>::get_facet( value );
+            position[i]->bind (radio[i]->id ()); // bind position facet and radio facet on the same node
+            position[i]->set_position (pos_x,pos_y,pos_z, radio[i]->id ()); // position can only be setted after enable_radio () operation
 
-                distance[i] = &wiselib::FacetProvider<Os, Os::Distance>::get_facet( value );
-                distance[i]->bind (radio[i]->id ()); // bind position facet and radio facet on the same node
+            distance[i] = &wiselib::FacetProvider<Os, Os::Distance>::get_facet( value );
+            distance[i]->bind (radio[i]->id ()); // bind position facet and radio facet on the same node
 
-                pos_x += 10;
-                pos_y += 10;
-                pos_z += 10;
+            pos_x += 10;
+            pos_y += 10;
+            pos_z += 10;
 
-                debugComUart[i] = &wiselib::FacetProvider<Os, Os::DebugComUart>::get_facet( value );
-                debugComUart[i]->enable_serial_comm();
-                debugComUart[i]->init (*debug_);
-              }
+            debugComUart[i] = &wiselib::FacetProvider<Os, Os::DebugComUart>::get_facet( value );
+            debugComUart[i]->enable_serial_comm();
+            debugComUart[i]->init (*debug_);
           }
 
         debug_->debug( "%f: Init simulation", clock_->time ());        
 
-        if  ( !ENABLE_EXTDATA_RADIO )
-          {
-            timer_->set_timer<Ns3ExampleApplication,
-                            &Ns3ExampleApplication::start_radio_facet>( 5000, this, 0 );
+        timer_->set_timer<Ns3ExampleApplication,
+                        &Ns3ExampleApplication::start_radio_facet>( 5000, this, 0 );
 
-            timer_->set_timer<Ns3ExampleApplication,    
-                      &Ns3ExampleApplication::start_clock_facet>( 6543.2, this, 0 );
+        timer_->set_timer<Ns3ExampleApplication,    
+                  &Ns3ExampleApplication::start_clock_facet>( 6543.2, this, 0 );
 
-            timer_->set_timer<Ns3ExampleApplication,
-                            &Ns3ExampleApplication::start_distance_position_facet>( 7000, this, 0 );
+        timer_->set_timer<Ns3ExampleApplication,
+                        &Ns3ExampleApplication::start_distance_position_facet>( 7000, this, 0 );
 
-            timer_->set_timer<Ns3ExampleApplication,
-                            &Ns3ExampleApplication::start_rand_facet>( 8000, this, 0 );
+        timer_->set_timer<Ns3ExampleApplication,
+                        &Ns3ExampleApplication::start_rand_facet>( 8000, this, 0 );
 
-            timer_->set_timer<Ns3ExampleApplication,
-                            &Ns3ExampleApplication::start_serial_comm_facet>( 9000, this, 0 );
-          }
+        timer_->set_timer<Ns3ExampleApplication,
+                        &Ns3ExampleApplication::start_serial_comm_facet>( 9000, this, 0 );
 
         if  ( ENABLE_EXTDATA_RADIO )
           timer_->set_timer<Ns3ExampleApplication,
-                            &Ns3ExampleApplication::start_extdata_radio_facet>( 10000, this, 0 );
+                          &Ns3ExampleApplication::start_extdata_radio_facet>( 10000, this, 0 );
 
       };
 
@@ -226,30 +232,30 @@ class Ns3ExampleApplication
 
     void start_extdata_radio_facet (void*)
     {
-       debug_->debug ("\n%f: ExtendedDataRadio facet test", clock_->time () );
-       debug_->debug( "  %f: Broadcast message at node %d", clock_->time (), extDataRadio[0]->id() );
-       Os::ExtendedDataRadio::block_data_t message1[] = "hello world broadcast!\0";
-               extDataRadio[0]->send( Os::ExtendedDataRadio::BROADCAST_ADDRESS, sizeof(message1), message1 );
+       debug_->debug ("\n%f: Extended data Radio facet test", clock_->time () );
+       debug_->debug( "  %f: Broadcast message at node %d", clock_->time (), radio[0]->id() );
+       Os::Radio::block_data_t message1[] = "hello world broadcast!\0";
+               radio[0]->send( Os::Radio::BROADCAST_ADDRESS, sizeof(message1), message1 );
 
-       debug_->debug( "  %f: Send unicast message at node %d to %d",clock_->time (), extDataRadio[0]->id(), 
-                    extDataRadio[1]->id() );
-       Os::ExtendedDataRadio::block_data_t message2[] = "hello world unicast!\0";
-               extDataRadio[0]->send( extDataRadio[1]->id(), sizeof(message2), message2 );
+       debug_->debug( "  %f: Send unicast message at node %d to %d",clock_->time (), radio[0]->id(), 
+                    radio[1]->id() );
+       Os::Radio::block_data_t message2[] = "hello world unicast!\0";
+               radio[0]->send( radio[1]->id(), sizeof(message2), message2 );
       
     }
 
-    void receive_extdata_radio1_message( Os::ExtendedDataRadio::node_id_t from, Os::ExtendedDataRadio::size_t len, 
-            Os::ExtendedDataRadio::block_data_t *buf, ExtendedDataClass *extdata )
+    void receive_extdata_radio1_message( Os::Radio::node_id_t from, Os::Radio::size_t len, 
+            Os::Radio::block_data_t *buf, ExtendedDataClass *extdata )
       {
-         debug_->debug( "  %f: Received msg1 at %u from %u",clock_->time (), extDataRadio[1]->id(), from );
+         debug_->debug( "  %f: Received msg1 at %u from %u",clock_->time (), radio[1]->id(), from );
          debug_->debug( "    message is %s", buf );
          debug_->debug( "    RSS is %f", extdata->GetRss () );
       }
 
-    void receive_extdata_radio2_message( Os::ExtendedDataRadio::node_id_t from, Os::ExtendedDataRadio::size_t len, 
-           Os::ExtendedDataRadio::block_data_t *buf, ExtendedDataClass *extdata )
+    void receive_extdata_radio2_message( Os::Radio::node_id_t from, Os::Radio::size_t len, 
+           Os::Radio::block_data_t *buf, ExtendedDataClass *extdata )
       {
-         debug_->debug( "  %f: received msg2 at %u from %u",clock_->time (),  extDataRadio[2]->id(), from );
+         debug_->debug( "  %f: received msg2 at %u from %u",clock_->time (),  radio[2]->id(), from );
          debug_->debug( "    message is %s", buf );
          debug_->debug( "    RSS is %f", extdata->GetRss () );
       }
@@ -260,8 +266,6 @@ class Ns3ExampleApplication
     Os::Debug::self_pointer_t debug_;
     Os::Timer::self_pointer_t timer_;
     Os::Radio::self_pointer_t radio[MAX_NODES];
-    Os::ExtendedDataRadio::self_pointer_t extDataRadio[MAX_NODES];
-    Os::TxRadio::self_pointer_t txRadio[MAX_NODES];
     Os::Clock::self_pointer_t clock_;
     Os::Position::self_pointer_t position[MAX_NODES];
     Os::Distance::self_pointer_t distance[MAX_NODES];
